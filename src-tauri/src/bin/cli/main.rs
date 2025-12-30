@@ -1,33 +1,52 @@
-use adzan_reminder_lib::PrayerService;
+use adzan_reminder_lib::{AppConfig, PrayerService};
+use console::Term;
+use dialoguer::{theme::ColorfulTheme, Select};
+
+const BANNER: &str = r#"
+▄▖ ▌        ▄▖     ▘   ▌      ▄▖▖ ▄▖
+▌▌▛▌▀▌▀▌▛▌  ▙▘█▌▛▛▌▌▛▌▛▌█▌▛▘  ▌ ▌ ▐
+▛▌▙▌▙▖█▌▌▌  ▌▌▙▖▌▌▌▌▌▌▙▌▙▖▌   ▙▖▙▖▟▖
+"#;
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let term = Term::stdout();
+    let theme = ColorfulTheme::default();
 
-    if args.len() > 1 {
-      match args[1].as_str() {
-        "today" => show_today_schedule().await,
-        "cities" => show_city_count().await,
-        _ => print_help(),
-      }
-    } else {
-      print_help();
-    }
-}
+    loop {
+        term.clear_screen().unwrap();
+        println!("{}", console::style(BANNER).cyan().bold());
+        println!("{}", console::style("Adzan Reminder CLI").green().bold());
+        println!();
 
-fn print_help() {
-  println!("Adzan Reminder CLI");
-  println!("Perintah yang tersedia:");
-  println!("   cities   - Lihat jumlah kota yang tersedia");
-  println!("   today    - Tampilkan jadwal sholat hari ini (contoh Jakarta)");
-  println!("Gunakan: adzan <perintah>");
-}
+        let items = vec![
+            "Tampilkan jadwal hari ini",
+            "Pilih kota",
+            "Lihat kota terpilih",
+            "Keluar",
+        ];
 
-async fn show_city_count() {
-    let service = PrayerService::new();
-    match service.get_cities().await {
-        Ok(cities) => println!("Total kota tersedia: {} kota", cities.len()),
-        Err(e) => eprintln!("Error fetch kota: {}", e),
+        let selection = Select::with_theme(&theme)
+            .items(&items)
+            .default(0)
+            .interact_on_opt(&term)
+            .unwrap();
+
+        match selection {
+            Some(0) => show_today_schedule().await,
+            Some(1) => set_city_interactive().await,
+            Some(2) => show_current_city().await,
+            Some(3) => {
+                println!("Keluar dari aplikasi. Semoga bermanfaat! 🕌");
+                break;
+            }
+            None => break,
+            _ => unreachable!(),
+        }
+
+        println!();
+        println!("Tekan Enter untuk kembali ke menu...");
+        let _ = term.read_line();
     }
 }
 
@@ -42,7 +61,7 @@ async fn show_today_schedule() {
 
             println!("Jadwal Sholat Hari Ini - {}", lokasi);
             println!("──────────────────────────────");
-            
+
             // Ambil jadwal untuk hari ini (ambil yang pertama dari HashMap)
             if let Some((_, jadwal_hari)) = schedule.data.jadwal.iter().next() {
                 println!("Tanggal : {}", jadwal_hari.tanggal);
@@ -59,5 +78,56 @@ async fn show_today_schedule() {
             }
         }
         Err(e) => eprintln!("Error fetch jadwal: {}", e),
+    }
+}
+
+async fn show_current_city() {
+    let config = AppConfig::load().unwrap_or_default();
+    match config.selected_city_id {
+        Some(id) => {
+            let name = config
+                .selected_city_name
+                .as_deref()
+                .unwrap_or("Tidak diketahui");
+            println!("Kota terpilih: {} ({})", name, id);
+        }
+        None => println!("Belum ada kota yang dipilih."),
+    }
+}
+
+async fn set_city_interactive() {
+    let service = PrayerService::new();
+    let cities = match service.get_cities().await {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Gagal fetch list kota: {}", e);
+            return;
+        }
+    };
+
+    let city_names: Vec<String> = cities.iter().map(|c| c.lokasi.clone()).collect();
+
+    let theme = ColorfulTheme::default();
+    let term = Term::stdout();
+
+    let selection = Select::with_theme(&theme)
+        .with_prompt("Pilih kota:")
+        .items(&city_names)
+        .default(0)
+        .interact_on_opt(&term)
+        .unwrap();
+
+    if let Some(index) = selection {
+        let chosen = &cities[index];
+
+        let mut config = AppConfig::load().unwrap_or_default();
+        config.selected_city_id = Some(chosen.id.clone());
+        config.selected_city_name = Some(chosen.lokasi.clone());
+
+        if let Err(e) = config.save() {
+            eprintln!("Gagal simpan config: {}", e);
+        } else {
+            println!("Kota berhasil disimpan: {}", chosen.lokasi);
+        }
     }
 }

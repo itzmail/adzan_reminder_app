@@ -3,10 +3,12 @@ pub mod domain;
 pub mod error;
 pub mod infra;
 pub mod helpers;
+pub mod config;
 
 pub use app::services::PrayerService;
 pub use domain::entities::*;
 pub use error::AppError;
+pub use config::AppConfig;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
