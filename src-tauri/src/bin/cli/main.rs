@@ -54,43 +54,52 @@ async fn main() {
 }
 
 async fn show_today_schedule() {
-    let service = PrayerService::new();
     let config = AppConfig::load().unwrap_or_default();
-    let city_id: String;
 
     match config.selected_city_id {
         Some(id) => {
-            city_id = id;
-        },
+            let service = PrayerService::new();
+            let city_name = config
+                .selected_city_name
+                .as_deref()
+                .unwrap_or("Kota tidak diketahui");
+
+            let mut sp = spinners::Spinner::new(
+                spinners::Spinners::Dots9,
+                format!("Mengambil jadwal untuk {}...", city_name),
+            );
+            match service.get_today_schedule(id.as_str()).await {
+                Ok(schedule) => {
+                    let lokasi = &schedule.data.kabko;
+                    sp.stop_with_message("✅ Jadwal berhasil dimuat!\n".to_string());
+
+                    println!("Jadwal Sholat Hari Ini - {}", lokasi);
+                    println!("──────────────────────────────");
+
+                    // Ambil jadwal untuk hari ini (ambil yang pertama dari HashMap)
+                    if let Some((_, jadwal_hari)) = schedule.data.jadwal.iter().next() {
+                        println!("Tanggal : {}", jadwal_hari.tanggal);
+                        println!("Imsak   : {}", jadwal_hari.imsak);
+                        println!("Subuh   : {}", jadwal_hari.subuh);
+                        println!("Terbit  : {}", jadwal_hari.terbit);
+                        println!("Dhuha   : {}", jadwal_hari.dhuha);
+                        println!("Dzuhur  : {}", jadwal_hari.dzuhur);
+                        println!("Ashar   : {}", jadwal_hari.ashar);
+                        println!("Maghrib : {}", jadwal_hari.maghrib);
+                        println!("Isya    : {}", jadwal_hari.isya);
+                    } else {
+                        println!("Tidak ada data jadwal tersedia");
+                    }
+                }
+                Err(e) => {
+                    sp.stop_with_message(format!("❌ Gagal fetch jadwal: {}\n", e));
+                }
+            }
+        }
         None => {
             println!("Belum ada kota yang dipilih.");
             return;
         }
-    }
-
-    match service.get_today_schedule(city_id.as_str()).await {
-        Ok(schedule) => {
-            let lokasi = &schedule.data.kabko;
-
-            println!("Jadwal Sholat Hari Ini - {}", lokasi);
-            println!("──────────────────────────────");
-
-            // Ambil jadwal untuk hari ini (ambil yang pertama dari HashMap)
-            if let Some((_, jadwal_hari)) = schedule.data.jadwal.iter().next() {
-                println!("Tanggal : {}", jadwal_hari.tanggal);
-                println!("Imsak   : {}", jadwal_hari.imsak);
-                println!("Subuh   : {}", jadwal_hari.subuh);
-                println!("Terbit  : {}", jadwal_hari.terbit);
-                println!("Dhuha   : {}", jadwal_hari.dhuha);
-                println!("Dzuhur  : {}", jadwal_hari.dzuhur);
-                println!("Ashar   : {}", jadwal_hari.ashar);
-                println!("Maghrib : {}", jadwal_hari.maghrib);
-                println!("Isya    : {}", jadwal_hari.isya);
-            } else {
-                println!("Tidak ada data jadwal tersedia");
-            }
-        }
-        Err(e) => eprintln!("Error fetch jadwal: {}", e),
     }
 }
 
@@ -109,11 +118,19 @@ async fn show_current_city() {
 }
 
 async fn set_city_interactive() {
+    let mut sp = spinners::Spinner::new(
+        spinners::Spinners::Dots,
+        "Mengambil list kota dari API...".to_string(),
+    );
+
     let service = PrayerService::new();
     let cities = match service.get_cities().await {
-        Ok(c) => c,
+        Ok(c) => {
+            sp.stop_with_message("✅ List kota berhasil dimuat!\n".to_string());
+            c
+        }
         Err(e) => {
-            eprintln!("Gagal fetch list kota: {}", e);
+            sp.stop_with_message(format!("❌ Gagal fetch list kota: {}\n", e));
             return;
         }
     };
