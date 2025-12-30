@@ -1,6 +1,9 @@
 use adzan_reminder_lib::{AppConfig, PrayerService};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
+use skim::prelude::*;
+use skim::Skim;
+use std::io::Cursor;
 
 const BANNER: &str = r#"
 ▄▖ ▌        ▄▖     ▘   ▌      ▄▖▖ ▄▖
@@ -52,10 +55,20 @@ async fn main() {
 
 async fn show_today_schedule() {
     let service = PrayerService::new();
+    let config = AppConfig::load().unwrap_or_default();
+    let city_id: String;
 
-    let jakarta_id = "eda80a3d5b344bc40f3bc04f65b7a357";
+    match config.selected_city_id {
+        Some(id) => {
+            city_id = id;
+        },
+        None => {
+            println!("Belum ada kota yang dipilih.");
+            return;
+        }
+    }
 
-    match service.get_today_schedule(jakarta_id).await {
+    match service.get_today_schedule(city_id.as_str()).await {
         Ok(schedule) => {
             let lokasi = &schedule.data.kabko;
 
@@ -105,29 +118,46 @@ async fn set_city_interactive() {
         }
     };
 
-    let city_names: Vec<String> = cities.iter().map(|c| c.lokasi.clone()).collect();
+    // Format items sebagai string sederhana (nama kota)
+    let input_bytes: Vec<u8> = cities
+        .iter()
+        .map(|c| format!("{}\n", c.lokasi))
+        .collect::<String>()
+        .into_bytes();
 
-    let theme = ColorfulTheme::default();
-    let term = Term::stdout();
-
-    let selection = Select::with_theme(&theme)
-        .with_prompt("Pilih kota:")
-        .items(&city_names)
-        .default(0)
-        .interact_on_opt(&term)
+    let options = SkimOptionsBuilder::default()
+        .height("70%".into())
+        .multi(false)
+        .prompt("Cari kota: ".into())
+        .build()
         .unwrap();
 
-    if let Some(index) = selection {
-        let chosen = &cities[index];
+    let item_reader = SkimItemReader::default();
+    let items = item_reader.of_bufread(Cursor::new(input_bytes));
 
-        let mut config = AppConfig::load().unwrap_or_default();
-        config.selected_city_id = Some(chosen.id.clone());
-        config.selected_city_name = Some(chosen.lokasi.clone());
+    let selected = Skim::run_with(&options, Some(items));
 
-        if let Err(e) = config.save() {
-            eprintln!("Gagal simpan config: {}", e);
-        } else {
-            println!("Kota berhasil disimpan: {}", chosen.lokasi);
+    if let Some(output) = selected {
+        if output.is_abort {
+            println!("Pemilihan dibatalkan.");
+            return;
+        }
+
+        if let Some(selected_line) = output.selected_items.first() {
+            let selected_name = selected_line.output().to_string();
+
+            // Cari kota berdasarkan nama (karena output hanya nama)
+            if let Some(chosen) = cities.iter().find(|c| c.lokasi == selected_name) {
+                let mut config = AppConfig::load().unwrap_or_default();
+                config.selected_city_id = Some(chosen.id.clone());
+                config.selected_city_name = Some(chosen.lokasi.clone());
+
+                if let Err(e) = config.save() {
+                    eprintln!("Gagal simpan config: {}", e);
+                } else {
+                    println!("\n✅ Kota berhasil disimpan: {}", chosen.lokasi);
+                }
+            }
         }
     }
 }
