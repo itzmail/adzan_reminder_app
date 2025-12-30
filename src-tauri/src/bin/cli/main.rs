@@ -38,16 +38,25 @@ async fn show_today_schedule() {
 
     match service.get_today_schedule(jakarta_id).await {
         Ok(schedule) => {
-            let j = &schedule.data.jadwal;
-            let lokasi = &schedule.data.lokasi;
+            let lokasi = &schedule.data.kabko;
 
             println!("Jadwal Sholat Hari Ini - {}", lokasi);
             println!("──────────────────────────────");
-            println!("Subuh   : {}", j.subuh);
-            println!("Dzuhur  : {}", j.dzuhur);
-            println!("Ashar   : {}", j.ashar);
-            println!("Maghrib : {}", j.maghrib);
-            println!("Isya    : {}", j.isya);
+            
+            // Ambil jadwal untuk hari ini (ambil yang pertama dari HashMap)
+            if let Some((_, jadwal_hari)) = schedule.data.jadwal.iter().next() {
+                println!("Tanggal : {}", jadwal_hari.tanggal);
+                println!("Imsak   : {}", jadwal_hari.imsak);
+                println!("Subuh   : {}", jadwal_hari.subuh);
+                println!("Terbit  : {}", jadwal_hari.terbit);
+                println!("Dhuha   : {}", jadwal_hari.dhuha);
+                println!("Dzuhur  : {}", jadwal_hari.dzuhur);
+                println!("Ashar   : {}", jadwal_hari.ashar);
+                println!("Maghrib : {}", jadwal_hari.maghrib);
+                println!("Isya    : {}", jadwal_hari.isya);
+            } else {
+                println!("Tidak ada data jadwal tersedia");
+            }
         }
         Err(e) => eprintln!("Error fetch jadwal: {}", e),
     }
