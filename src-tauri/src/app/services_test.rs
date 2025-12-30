@@ -11,11 +11,11 @@ mod tests {
         let expected_cities = vec![
             Kota {
                 id: "1".to_string(),
-                nama: "Jakarta".to_string(),
+                lokasi: "Jakarta".to_string(),
             },
             Kota {
                 id: "2".to_string(),
-                nama: "Bandung".to_string(),
+                lokasi: "Bandung".to_string(),
             },
         ];
 
@@ -30,6 +30,6 @@ mod tests {
         assert!(result.is_ok());
         let cities = result.unwrap();
         assert_eq!(cities.len(), 2);
-        assert_eq!(cities[0].nama, "Jakarta");
+        assert_eq!(cities[0].lokasi, "Jakarta");
     }
 }

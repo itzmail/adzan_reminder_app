@@ -2,6 +2,7 @@ pub mod app;
 pub mod domain;
 pub mod error;
 pub mod infra;
+pub mod helpers;
 
 pub use app::services::PrayerService;
 pub use domain::entities::*;

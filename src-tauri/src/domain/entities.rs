@@ -1,10 +1,14 @@
+use crate::helpers::serde_helpers::string_or_null;
 use serde::{Deserialize, Serialize};
 
 /// Entity untuk satu kota/kabupaten
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Kota {
+    #[serde(deserialize_with = "string_or_null")]
     pub id: String,
-    pub nama: String,
+
+    #[serde(deserialize_with = "string_or_null")]
+    pub lokasi: String,
 }
 
 /// Response list kota
