@@ -1,4 +1,4 @@
-use adzan_reminder_lib::{AppConfig, PrayerService};
+use adzan_reminder_lib::{AppConfig, PrayerService, send_prayer_notification};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
 use skim::prelude::*;
@@ -26,6 +26,7 @@ async fn main() {
             "Tampilkan jadwal hari ini",
             "Pilih kota",
             "Lihat kota terpilih",
+            "daemon",
             "Keluar",
         ];
 
@@ -39,7 +40,8 @@ async fn main() {
             Some(0) => show_today_schedule().await,
             Some(1) => set_city_interactive().await,
             Some(2) => show_current_city().await,
-            Some(3) => {
+            Some(3) => run_daemon_test().await,
+            Some(4) => {
                 println!("Keluar dari aplikasi. Semoga bermanfaat! 🕌");
                 break;
             }
@@ -50,6 +52,25 @@ async fn main() {
         println!();
         println!("Tekan Enter untuk kembali ke menu...");
         let _ = term.read_line();
+    }
+}
+
+async fn run_daemon_test() {
+    println!("🕌 Adzan Reminder daemon mulai (mode test notification)");
+    println!("Akan kirim notifikasi setiap 30 detik untuk test.");
+    println!("Tekan Ctrl+C untuk berhenti.\n");
+
+    let prayers = ["Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"];
+    let mut index = 0;
+
+    loop {
+        let prayer = prayers[index % prayers.len()];
+        index += 1;
+
+        send_prayer_notification(prayer, "Saatnya sholat! 🕌");
+
+        // Sleep 30 detik untuk test
+        std::thread::sleep(std::time::Duration::from_secs(30));
     }
 }
 

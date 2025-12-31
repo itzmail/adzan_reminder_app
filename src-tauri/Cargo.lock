@@ -19,6 +19,7 @@ dependencies = [
  "dialoguer",
  "fuzzy-matcher",
  "mockall",
+ "notify-rust",
  "reqwest",
  "serde",
  "serde_json",

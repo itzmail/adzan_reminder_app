@@ -9,6 +9,7 @@ pub use app::services::PrayerService;
 pub use domain::entities::*;
 pub use error::AppError;
 pub use config::AppConfig;
+pub use helpers::notification::send_prayer_notification;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
