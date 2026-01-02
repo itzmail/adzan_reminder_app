@@ -30,7 +30,7 @@ pub struct Koordinat {
 }
 
 /// Jadwal sholat satu hari
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct JadwalSholat {
     pub tanggal: String,
     pub imsak: String,
@@ -93,7 +93,7 @@ mod tests {
         "#;
 
         let result: Result<JadwalResponse, _> = serde_json::from_str(json_response);
-        
+
         match result {
             Ok(response) => {
                 assert_eq!(response.status, true);
@@ -101,7 +101,7 @@ mod tests {
                 assert_eq!(response.data.id, "eda80a3d5b344bc40f3bc04f65b7a357");
                 assert_eq!(response.data.kabko, "KOTA KEDIRI");
                 assert_eq!(response.data.prov, "JAWA TIMUR");
-                
+
                 // Test jadwal untuk tanggal 2025-12-30
                 let jadwal_hari = response.data.jadwal.get("2025-12-30").unwrap();
                 assert_eq!(jadwal_hari.tanggal, "Selasa, 30/12/2025");
@@ -113,7 +113,7 @@ mod tests {
                 assert_eq!(jadwal_hari.ashar, "15:04");
                 assert_eq!(jadwal_hari.maghrib, "17:55");
                 assert_eq!(jadwal_hari.isya, "19:11");
-                
+
                 println!("✅ DTO berhasil deserialize response JSON dengan benar!");
             }
             Err(e) => {

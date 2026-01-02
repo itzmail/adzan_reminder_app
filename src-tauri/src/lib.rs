@@ -4,6 +4,7 @@ pub mod error;
 pub mod infra;
 pub mod helpers;
 pub mod config;
+pub mod prayer_time;
 
 pub use app::services::PrayerService;
 pub use domain::entities::*;
