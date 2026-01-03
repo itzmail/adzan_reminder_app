@@ -1,9 +1,13 @@
-use adzan_reminder_lib::{AppConfig, PrayerService, send_prayer_notification};
+use adzan_reminder_lib::prayer_time::PrayerTimes;
+use adzan_reminder_lib::{send_prayer_notification, AppConfig, PrayerService};
+use chrono::{Local, Timelike};
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
 use skim::prelude::*;
 use skim::Skim;
+use std::collections::HashSet;
 use std::io::Cursor;
+use std::time::Duration;
 
 const BANNER: &str = r#"
 ▄▖ ▌        ▄▖     ▘   ▌      ▄▖▖ ▄▖
@@ -40,7 +44,7 @@ async fn main() {
             Some(0) => show_today_schedule().await,
             Some(1) => set_city_interactive().await,
             Some(2) => show_current_city().await,
-            Some(3) => run_daemon_test().await,
+            Some(3) => run_daemon().await,
             Some(4) => {
                 println!("Keluar dari aplikasi. Semoga bermanfaat! 🕌");
                 break;
@@ -55,22 +59,67 @@ async fn main() {
     }
 }
 
-async fn run_daemon_test() {
+async fn run_daemon() {
     println!("🕌 Adzan Reminder daemon mulai (mode test notification)");
     println!("Akan kirim notifikasi setiap 30 detik untuk test.");
     println!("Tekan Ctrl+C untuk berhenti.\n");
 
-    let prayers = ["Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"];
-    let mut index = 0;
+    let config = AppConfig::load().unwrap_or_default();
+
+    let city_id = match config.selected_city_id {
+        Some(id) => id,
+        None => {
+            eprintln!("Belum ada kota dipilih. Jalankan 'adzan set-city dulu' dulu.");
+            return;
+        }
+    };
+
+    let city_name = config.selected_city_name.as_deref().unwrap_or("Kota");
+
+    let service = PrayerService::new();
+    let schedule = match service.get_today_schedule(&city_id).await {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Gagal fetch jadwal: {}", e);
+            return;
+        }
+    };
+
+    let prayer_times = PrayerTimes::from_schedule(&schedule);
+
+    println!(
+        "Jadwal {} berhasil dimuat. Daemon berjalan... \n",
+        city_name
+    );
+
+    let mut reminded_five_min: HashSet<String> = HashSet::new();
+    let mut reminded_exact: HashSet<String> = HashSet::new();
 
     loop {
-        let prayer = prayers[index % prayers.len()];
-        index += 1;
+        if let Some(message) = prayer_times.check_reminder() {
+            let prayer_name = message.split(' ').next().unwrap_or("Sholat").to_string();
 
-        send_prayer_notification(prayer, "Saatnya sholat! 🕌");
+            if message.contains("sekarang") {
+                if !reminded_exact.contains(&prayer_name) {
+                    send_prayer_notification(&prayer_name, &message);
+                    reminded_exact.insert(prayer_name);
+                }
+            } else if message.contains("5 menit lagi") {
+                if !reminded_five_min.contains(&prayer_name) {
+                    send_prayer_notification(&prayer_name, &message);
+                    reminded_five_min.insert(prayer_name);
+                }
+            }
+        }
 
-        // Sleep 30 detik untuk test
-        std::thread::sleep(std::time::Duration::from_secs(30));
+        let now = Local::now();
+        if now.hour() == 0 && now.minute() == 0 {
+            reminded_five_min.clear();
+            reminded_exact.clear();
+            println!("Hari baru - reset reminder.");
+        }
+
+        std::thread::sleep(Duration::from_secs(60));
     }
 }
 
