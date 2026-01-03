@@ -1,3 +1,4 @@
+use adzan_reminder_lib::helpers::notification::play_adzan;
 use adzan_reminder_lib::prayer_time::PrayerTimes;
 use adzan_reminder_lib::{send_prayer_notification, AppConfig, PrayerService};
 use chrono::{Local, Timelike};
@@ -7,6 +8,7 @@ use skim::prelude::*;
 use skim::Skim;
 use std::collections::HashSet;
 use std::io::Cursor;
+use std::path::Path;
 use std::time::Duration;
 
 const BANNER: &str = r#"
@@ -60,8 +62,8 @@ async fn main() {
 }
 
 async fn run_daemon() {
-    println!("🕌 Adzan Reminder daemon mulai (mode test notification)");
-    println!("Akan kirim notifikasi setiap 30 detik untuk test.");
+    println!("🕌 Adzan Reminder daemon mulai...");
+    println!("Reminder: 5 menit sebelum & tepat waktu sholat");
     println!("Tekan Ctrl+C untuk berhenti.\n");
 
     let config = AppConfig::load().unwrap_or_default();
@@ -98,10 +100,16 @@ async fn run_daemon() {
     loop {
         if let Some(message) = prayer_times.check_reminder() {
             let prayer_name = message.split(' ').next().unwrap_or("Sholat").to_string();
+            let adzan_path = std::env::current_exe()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join("assets/suara_bedug.mp3");
 
             if message.contains("sekarang") {
                 if !reminded_exact.contains(&prayer_name) {
                     send_prayer_notification(&prayer_name, &message);
+                    play_adzan(&adzan_path);
                     reminded_exact.insert(prayer_name);
                 }
             } else if message.contains("5 menit lagi") {
@@ -112,6 +120,7 @@ async fn run_daemon() {
             }
         }
 
+        // Reset in midnight
         let now = Local::now();
         if now.hour() == 0 && now.minute() == 0 {
             reminded_five_min.clear();

@@ -40,6 +40,7 @@ fuzzy-matcher = "0.3.7"
 skim = "0.20.5"
 spinners = "4.1.1"
 notify-rust = "4.11.7"
+rodio = "0.21.1"
 
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["macros"] }
@@ -48,3 +49,6 @@ mockall = "0.14.0"
 [[bin]]
 name = "adzan"
 path = "src/bin/cli/main.rs"
+
+[package.metadata]
+cargo-build = { copy = ["assets/**"] }
